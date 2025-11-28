@@ -84,6 +84,10 @@ Current stable, released 2025-12-11
 * [`double_parens`] fixed FP when macros are involved
   [#15420](https://github.com/rust-lang/rust-clippy/pull/15420)
 
+### New Lints
+
+* Added [`manual_checked_div`] to `nursery`
+
 ## Rust 1.91
 
 Current stable, released 2025-10-30
@@ -6607,6 +6611,7 @@ Released 2018-09-13
 [`manual_async_fn`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_async_fn
 [`manual_bits`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_bits
 [`manual_c_str_literals`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_c_str_literals
+[`manual_checked_div`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_checked_div
 [`manual_clamp`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_clamp
 [`manual_contains`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_contains
 [`manual_dangling_ptr`]: https://rust-lang.github.io/rust-clippy/master/index.html#manual_dangling_ptr
