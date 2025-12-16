@@ -2,7 +2,7 @@
 
 fn main() {
     let a = 10u32;
-    let b = 5u32;
+    let mut b = 5u32;
 
     // Should trigger lint
     if b != 0 {
@@ -33,4 +33,34 @@ fn main() {
         //~^ manual_checked_div
         let _result = 10 / c;
     }
+
+    // Should NOT trigger (side effects in divisor)
+    if counter() > 0 {
+        let _ = 32 / counter();
+    }
+
+    // Should NOT trigger (divisor used before division)
+    if b > 0 {
+        use_value(b);
+        let _ = a / b;
+    }
+
+    // Should NOT trigger (divisor may change during evaluation)
+    if b > 0 {
+        g(inc_and_return_value(&mut b), a / b);
+    }
 }
+
+fn counter() -> u32 {
+    println!("counter");
+    1
+}
+
+fn use_value(_v: u32) {}
+
+fn inc_and_return_value(x: &mut u32) -> u32 {
+    *x += 1;
+    *x
+}
+
+fn g(_lhs: u32, _rhs: u32) {}

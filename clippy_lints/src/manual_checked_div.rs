@@ -55,16 +55,27 @@ impl LateLintPass<'_> for ManualCheckedDiv {
             && is_integer(cx, divisor)
             && let Some(block) = branch_block(then, r#else, branch)
         {
-            let mut eq = SpanlessEq::new(cx);
+            let mut eq = SpanlessEq::new(cx).deny_side_effects().paths_by_resolution();
+            if !eq.eq_expr(divisor, divisor) {
+                return;
+            }
+
             let mut applicability = Applicability::MaybeIncorrect;
             let mut divisions = Vec::new();
+            let mut first_use = None;
 
-            for_each_expr_without_closures(block, |e| {
+            let found_early_use = for_each_expr_without_closures(block, |e| {
                 if let ExprKind::Binary(binop, lhs, rhs) = e.kind
                     && binop.node == BinOpKind::Div
                     && eq.eq_expr(rhs, divisor)
                     && is_integer(cx, lhs)
                 {
+                    match first_use {
+                        None => first_use = Some(UseKind::Division),
+                        Some(UseKind::Other) => return ControlFlow::Break(()),
+                        Some(UseKind::Division) => {},
+                    }
+
                     let lhs_snip = Sugg::hir_with_applicability(cx, lhs, "_", &mut applicability);
                     let rhs_snip = Sugg::hir_with_applicability(cx, rhs, "_", &mut applicability);
                     let lhs_ty = cx.typeck_results().expr_ty(lhs);
@@ -93,26 +104,39 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                     divisions.push((e.span, suggestion));
 
                     ControlFlow::<(), _>::Continue(Descend::No)
+                } else if eq.eq_expr(e, divisor) {
+                    if first_use.is_none() {
+                        first_use = Some(UseKind::Other);
+                    }
+                    ControlFlow::<(), _>::Continue(Descend::Yes)
                 } else {
                     ControlFlow::<(), _>::Continue(Descend::Yes)
                 }
             });
 
-            if !divisions.is_empty() {
-                let mut spans: Vec<_> = divisions.iter().map(|(span, _)| *span).collect();
-                spans.push(cond.span);
-                span_lint_and_then(
-                    cx,
-                    MANUAL_CHECKED_DIV,
-                    MultiSpan::from_spans(spans),
-                    "manual checked division",
-                    |diag| {
-                        diag.multipart_suggestion("consider using `checked_div`", divisions, applicability);
-                    },
-                );
+            if found_early_use.is_some() || first_use != Some(UseKind::Division) || divisions.is_empty() {
+                return;
             }
+
+            let mut spans: Vec<_> = divisions.iter().map(|(span, _)| *span).collect();
+            spans.push(cond.span);
+            span_lint_and_then(
+                cx,
+                MANUAL_CHECKED_DIV,
+                MultiSpan::from_spans(spans),
+                "manual checked division",
+                |diag| {
+                    diag.multipart_suggestion("consider using `checked_div`", divisions, applicability);
+                },
+            );
         }
     }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum UseKind {
+    Division,
+    Other,
 }
 
 fn divisor_from_condition<'tcx>(cond: &'tcx Expr<'tcx>) -> Option<(&'tcx Expr<'tcx>, NonZeroBranch)> {
