@@ -44,5 +44,14 @@ LL |
 LL |         let _result = 10 / c;
    |                       ^^^^^^ help: consider using `checked_div`: `10_i32.checked_div(c)`
 
-error: aborting due to 4 previous errors
+error: manual checked division
+  --> tests/ui/manual_checked_div.rs:58:8
+   |
+LL |     if signed_div > 0 {
+   |        ^^^^^^^^^^^^^^
+LL |
+LL |         let _ = signed_min / signed_div;
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `checked_div`: `signed_min.checked_div(signed_div)`
+
+error: aborting due to 5 previous errors
 

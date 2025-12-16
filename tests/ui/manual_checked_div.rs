@@ -45,6 +45,21 @@ fn main() {
         let _ = a / b;
     }
 
+    let signed_min = i32::MIN;
+    let mut signed_div: i32 = -1;
+
+    // Should NOT trigger (would change behavior for MIN / -1)
+    if signed_div != 0 {
+        let _ = signed_min / signed_div;
+    }
+
+    signed_div = 2;
+
+    if signed_div > 0 {
+        //~^ manual_checked_div
+        let _ = signed_min / signed_div;
+    }
+
     // Should NOT trigger (divisor may change during evaluation)
     if b > 0 {
         g(inc_and_return_value(&mut b), a / b);

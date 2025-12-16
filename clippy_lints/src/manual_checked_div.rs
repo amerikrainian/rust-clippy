@@ -1,3 +1,4 @@
+use clippy_utils::consts::{ConstEvalCtxt, FullInt};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::visitors::{Descend, for_each_expr_without_closures};
@@ -55,6 +56,7 @@ impl LateLintPass<'_> for ManualCheckedDiv {
             && is_integer(cx, divisor)
             && let Some(block) = branch_block(then, r#else, branch)
         {
+            let divisor_excludes_minus_one = excludes_minus_one(cx, cond, divisor);
             let mut eq = SpanlessEq::new(cx).deny_side_effects().paths_by_resolution();
             if !eq.eq_expr(divisor, divisor) {
                 return;
@@ -70,6 +72,14 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                     && eq.eq_expr(rhs, divisor)
                     && is_integer(cx, lhs)
                 {
+                    let lhs_ty = cx.typeck_results().expr_ty(lhs);
+                    if let ty::Int(int_ty) = lhs_ty.peel_refs().kind()
+                        && !divisor_excludes_minus_one
+                        && min_and_minus_one(cx, lhs, rhs, *int_ty)
+                    {
+                        return ControlFlow::Break(());
+                    }
+
                     match first_use {
                         None => first_use = Some(UseKind::Division),
                         Some(UseKind::Other) => return ControlFlow::Break(()),
@@ -78,7 +88,6 @@ impl LateLintPass<'_> for ManualCheckedDiv {
 
                     let lhs_snip = Sugg::hir_with_applicability(cx, lhs, "_", &mut applicability);
                     let rhs_snip = Sugg::hir_with_applicability(cx, rhs, "_", &mut applicability);
-                    let lhs_ty = cx.typeck_results().expr_ty(lhs);
                     let lhs_sugg = lhs_snip.maybe_paren().to_string();
                     let type_suffix = if matches!(
                         lhs.kind,
@@ -172,6 +181,49 @@ fn branch_block<'tcx>(
 
 fn is_zero(expr: &Expr<'_>) -> bool {
     is_integer_literal(expr, 0)
+}
+
+fn min_and_minus_one(cx: &LateContext<'_>, lhs: &Expr<'_>, rhs: &Expr<'_>, int_ty: ty::IntTy) -> bool {
+    let lhs_val = int_value(cx, lhs);
+    let rhs_val = int_value(cx, rhs);
+
+    let lhs_maybe_min = lhs_val.is_none_or(|val| match val {
+        FullInt::S(signed) => signed == int_min_value(int_ty, cx),
+        FullInt::U(_) => false,
+    });
+    let rhs_maybe_minus_one = rhs_val.is_none_or(|val| matches!(val, FullInt::S(-1)));
+
+    lhs_maybe_min && rhs_maybe_minus_one
+}
+
+fn int_min_value(int_ty: ty::IntTy, cx: &LateContext<'_>) -> i128 {
+    let bits = match int_ty {
+        ty::IntTy::Isize => cx.tcx.data_layout.pointer_size().bits(),
+        ty::IntTy::I8 => 8,
+        ty::IntTy::I16 => 16,
+        ty::IntTy::I32 => 32,
+        ty::IntTy::I64 => 64,
+        ty::IntTy::I128 => 128,
+    };
+    -(1_i128 << (bits - 1))
+}
+
+fn int_value(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<FullInt> {
+    let ecx = ConstEvalCtxt::new(cx);
+    ecx.eval_full_int(expr, expr.span.ctxt())
+}
+
+fn excludes_minus_one(cx: &LateContext<'_>, cond: &Expr<'_>, divisor: &Expr<'_>) -> bool {
+    let ExprKind::Binary(binop, lhs, rhs) = cond.kind else {
+        return false;
+    };
+
+    let mut eq = SpanlessEq::new(cx).deny_side_effects().paths_by_resolution();
+    match binop.node {
+        BinOpKind::Gt if is_zero(rhs) && eq.eq_expr(lhs, divisor) => true,
+        BinOpKind::Lt if is_zero(lhs) && eq.eq_expr(rhs, divisor) => true,
+        _ => false,
+    }
 }
 
 fn is_integer(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
