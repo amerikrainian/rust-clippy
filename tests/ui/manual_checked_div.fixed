@@ -6,20 +6,21 @@ fn main() {
 
     // Should trigger lint
     if b != 0 {
-        let _result = a.checked_div(b);
         //~^ manual_checked_div
+        let _result = a.checked_div(b);
+        let _another = (a + 1).checked_div(b);
     }
 
     if b > 0 {
-        let _result = a.checked_div(b);
         //~^ manual_checked_div
+        let _result = a.checked_div(b);
     }
 
     if b == 0 {
+        //~^ manual_checked_div
         println!("zero");
     } else {
         let _result = a.checked_div(b);
-        //~^ manual_checked_div
     }
 
     // Should NOT trigger (already using checked_div)
@@ -27,9 +28,9 @@ fn main() {
         println!("{result}");
     }
 
-    // Should NOT trigger (signed integers)
     let c = -5i32;
     if c != 0 {
-        let _result = 10 / c;
+        //~^ manual_checked_div
+        let _result = 10_i32.checked_div(c);
     }
 }

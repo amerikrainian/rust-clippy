@@ -1,17 +1,19 @@
-use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::visitors::{Descend, for_each_expr_without_closures};
 use clippy_utils::{SpanlessEq, is_integer_literal};
-use rustc_errors::Applicability;
-use rustc_hir::{BinOpKind, Block, Expr, ExprKind};
+use rustc_ast::{LitIntType, LitKind};
+use rustc_errors::{Applicability, MultiSpan};
+use rustc_hir::{BinOpKind, Block, Expr, ExprKind, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
+use rustc_span::source_map::Spanned;
 use std::ops::ControlFlow;
 
 declare_clippy_lint! {
     /// ### What it does
-    /// Detects manual zero checks before dividing unsigned integers, such as `if x != 0 { y / x }`.
+    /// Detects manual zero checks before dividing integers, such as `if x != 0 { y / x }`.
     ///
     /// ### Why is this bad?
     /// `checked_div` already handles the zero case and makes the intent clearer while avoiding a
@@ -35,7 +37,7 @@ declare_clippy_lint! {
     #[clippy::version = "1.93.0"]
     pub MANUAL_CHECKED_DIV,
     nursery,
-    "manual zero checks before dividing unsigned integers"
+    "manual zero checks before dividing integers"
 }
 declare_lint_pass!(ManualCheckedDiv => [MANUAL_CHECKED_DIV]);
 
@@ -47,44 +49,68 @@ enum NonZeroBranch {
 
 impl LateLintPass<'_> for ManualCheckedDiv {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
-        if expr.span.from_expansion() {
-            return;
-        }
-
         if let ExprKind::If(cond, then, r#else) = expr.kind
+            && !expr.span.from_expansion()
             && let Some((divisor, branch)) = divisor_from_condition(cond)
-            && is_unsigned(cx, divisor)
+            && is_integer(cx, divisor)
+            && let Some(block) = branch_block(then, r#else, branch)
         {
-            let Some(block) = branch_block(then, r#else, branch) else {
-                return;
-            };
             let mut eq = SpanlessEq::new(cx);
+            let mut applicability = Applicability::MaybeIncorrect;
+            let mut divisions = Vec::new();
 
             for_each_expr_without_closures(block, |e| {
                 if let ExprKind::Binary(binop, lhs, rhs) = e.kind
                     && binop.node == BinOpKind::Div
                     && eq.eq_expr(rhs, divisor)
-                    && is_unsigned(cx, lhs)
+                    && is_integer(cx, lhs)
                 {
-                    let mut applicability = Applicability::MaybeIncorrect;
-                    let lhs_snip = Sugg::hir_with_applicability(cx, lhs, "..", &mut applicability);
-                    let rhs_snip = Sugg::hir_with_applicability(cx, rhs, "..", &mut applicability);
-
-                    span_lint_and_sugg(
-                        cx,
-                        MANUAL_CHECKED_DIV,
-                        e.span,
-                        "manual checked division",
-                        "consider using `checked_div`",
-                        format!("{}.checked_div({})", lhs_snip.maybe_paren(), rhs_snip),
-                        applicability,
-                    );
+                    let lhs_snip = Sugg::hir_with_applicability(cx, lhs, "_", &mut applicability);
+                    let rhs_snip = Sugg::hir_with_applicability(cx, rhs, "_", &mut applicability);
+                    let lhs_ty = cx.typeck_results().expr_ty(lhs);
+                    let lhs_sugg = lhs_snip.maybe_paren().to_string();
+                    let type_suffix = if matches!(
+                        lhs.kind,
+                        ExprKind::Lit(Spanned {
+                            node: LitKind::Int(_, LitIntType::Unsuffixed),
+                            ..
+                        }) | ExprKind::Unary(
+                            UnOp::Neg,
+                            Expr {
+                                kind: ExprKind::Lit(Spanned {
+                                    node: LitKind::Int(_, LitIntType::Unsuffixed),
+                                    ..
+                                }),
+                                ..
+                            }
+                        )
+                    ) {
+                        format!("_{lhs_ty}")
+                    } else {
+                        String::new()
+                    };
+                    let suggestion = format!("{lhs_sugg}{type_suffix}.checked_div({rhs_snip})");
+                    divisions.push((e.span, suggestion));
 
                     ControlFlow::<(), _>::Continue(Descend::No)
                 } else {
                     ControlFlow::<(), _>::Continue(Descend::Yes)
                 }
             });
+
+            if !divisions.is_empty() {
+                let mut spans: Vec<_> = divisions.iter().map(|(span, _)| *span).collect();
+                spans.push(cond.span);
+                span_lint_and_then(
+                    cx,
+                    MANUAL_CHECKED_DIV,
+                    MultiSpan::from_spans(spans),
+                    "manual checked division",
+                    |diag| {
+                        diag.multipart_suggestion("consider using `checked_div`", divisions, applicability);
+                    },
+                );
+            }
         }
     }
 }
@@ -109,15 +135,12 @@ fn branch_block<'tcx>(
     branch: NonZeroBranch,
 ) -> Option<&'tcx Block<'tcx>> {
     match branch {
-        NonZeroBranch::Then => {
-            if let ExprKind::Block(block, _) = then.kind {
-                Some(block)
-            } else {
-                None
-            }
+        NonZeroBranch::Then => match then.kind {
+            ExprKind::Block(block, _) => Some(block),
+            _ => None,
         },
-        NonZeroBranch::Else => match r#else.map(|expr| &expr.kind) {
-            Some(ExprKind::Block(block, _)) => Some(block),
+        NonZeroBranch::Else => match r#else?.kind {
+            ExprKind::Block(block, _) => Some(block),
             _ => None,
         },
     }
@@ -127,6 +150,9 @@ fn is_zero(expr: &Expr<'_>) -> bool {
     is_integer_literal(expr, 0)
 }
 
-fn is_unsigned(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
-    matches!(cx.typeck_results().expr_ty(expr).peel_refs().kind(), ty::Uint(_))
+fn is_integer(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
+    matches!(
+        cx.typeck_results().expr_ty(expr).peel_refs().kind(),
+        ty::Uint(_) | ty::Int(_)
+    )
 }
