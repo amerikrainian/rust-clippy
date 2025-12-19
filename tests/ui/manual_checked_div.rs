@@ -28,9 +28,9 @@ fn main() {
         println!("{result}");
     }
 
+    // Should NOT trigger (signed integers are not linted)
     let c = -5i32;
     if c != 0 {
-        //~^ manual_checked_div
         let _result = 10 / c;
     }
 
@@ -48,7 +48,7 @@ fn main() {
     let signed_min = i32::MIN;
     let mut signed_div: i32 = -1;
 
-    // Should NOT trigger (would change behavior for MIN / -1)
+    // Should NOT trigger (signed integers are not linted)
     if signed_div != 0 {
         let _ = signed_min / signed_div;
     }
@@ -56,7 +56,6 @@ fn main() {
     signed_div = 2;
 
     if signed_div > 0 {
-        //~^ manual_checked_div
         let _ = signed_min / signed_div;
     }
 
@@ -79,3 +78,16 @@ fn inc_and_return_value(x: &mut u32) -> u32 {
 }
 
 fn g(_lhs: u32, _rhs: u32) {}
+
+fn arbitrary_signed(lhs: i32, rhs: i32) -> i32 {
+    if rhs != 0 { lhs / rhs } else { lhs }
+}
+
+fn arbitrary_unsigned(lhs: u32, rhs: u32) -> u32 {
+    if rhs != 0 {
+        //~^ manual_checked_div
+        lhs / rhs
+    } else {
+        lhs
+    }
+}

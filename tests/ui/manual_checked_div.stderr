@@ -9,13 +9,9 @@ LL |         let _result = a / b;
 LL |         let _another = (a + 1) / b;
    |                        ^^^^^^^^^^^
    |
+   = help: consider using `checked_div` and handling the `Option` result
    = note: `-D clippy::manual-checked-div` implied by `-D warnings`
    = help: to override `-D warnings` add `#[allow(clippy::manual_checked_div)]`
-help: consider using `checked_div`
-   |
-LL ~         let _result = a.checked_div(b);
-LL ~         let _another = (a + 1).checked_div(b);
-   |
 
 error: manual checked division
   --> tests/ui/manual_checked_div.rs:14:8
@@ -24,7 +20,9 @@ LL |     if b > 0 {
    |        ^^^^^
 LL |
 LL |         let _result = a / b;
-   |                       ^^^^^ help: consider using `checked_div`: `a.checked_div(b)`
+   |                       ^^^^^
+   |
+   = help: consider using `checked_div` and handling the `Option` result
 
 error: manual checked division
   --> tests/ui/manual_checked_div.rs:19:8
@@ -33,25 +31,20 @@ LL |     if b == 0 {
    |        ^^^^^^
 ...
 LL |         let _result = a / b;
-   |                       ^^^^^ help: consider using `checked_div`: `a.checked_div(b)`
+   |                       ^^^^^
+   |
+   = help: consider using `checked_div` and handling the `Option` result
 
 error: manual checked division
-  --> tests/ui/manual_checked_div.rs:32:8
+  --> tests/ui/manual_checked_div.rs:87:8
    |
-LL |     if c != 0 {
-   |        ^^^^^^
+LL |     if rhs != 0 {
+   |        ^^^^^^^^
 LL |
-LL |         let _result = 10 / c;
-   |                       ^^^^^^ help: consider using `checked_div`: `10_i32.checked_div(c)`
-
-error: manual checked division
-  --> tests/ui/manual_checked_div.rs:58:8
+LL |         lhs / rhs
+   |         ^^^^^^^^^
    |
-LL |     if signed_div > 0 {
-   |        ^^^^^^^^^^^^^^
-LL |
-LL |         let _ = signed_min / signed_div;
-   |                 ^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `checked_div`: `signed_min.checked_div(signed_div)`
+   = help: consider using `checked_div` and handling the `Option` result
 
-error: aborting due to 5 previous errors
+error: aborting due to 4 previous errors
 
