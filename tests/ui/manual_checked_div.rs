@@ -78,16 +78,3 @@ fn inc_and_return_value(x: &mut u32) -> u32 {
 }
 
 fn g(_lhs: u32, _rhs: u32) {}
-
-fn arbitrary_signed(lhs: i32, rhs: i32) -> i32 {
-    if rhs != 0 { lhs / rhs } else { lhs }
-}
-
-fn arbitrary_unsigned(lhs: u32, rhs: u32) -> u32 {
-    if rhs != 0 {
-        //~^ manual_checked_div
-        lhs / rhs
-    } else {
-        lhs
-    }
-}

@@ -9,7 +9,7 @@ LL |         let _result = a / b;
 LL |         let _another = (a + 1) / b;
    |                        ^^^^^^^^^^^
    |
-   = help: consider using `checked_div` and handling the `Option` result
+   = help: consider using `checked_div`
    = note: `-D clippy::manual-checked-div` implied by `-D warnings`
    = help: to override `-D warnings` add `#[allow(clippy::manual_checked_div)]`
 
@@ -22,7 +22,7 @@ LL |
 LL |         let _result = a / b;
    |                       ^^^^^
    |
-   = help: consider using `checked_div` and handling the `Option` result
+   = help: consider using `checked_div`
 
 error: manual checked division
   --> tests/ui/manual_checked_div.rs:19:8
@@ -33,18 +33,7 @@ LL |     if b == 0 {
 LL |         let _result = a / b;
    |                       ^^^^^
    |
-   = help: consider using `checked_div` and handling the `Option` result
+   = help: consider using `checked_div`
 
-error: manual checked division
-  --> tests/ui/manual_checked_div.rs:87:8
-   |
-LL |     if rhs != 0 {
-   |        ^^^^^^^^
-LL |
-LL |         lhs / rhs
-   |         ^^^^^^^^^
-   |
-   = help: consider using `checked_div` and handling the `Option` result
-
-error: aborting due to 4 previous errors
+error: aborting due to 3 previous errors
 

@@ -103,7 +103,7 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                 MultiSpan::from_spans(division_spans),
                 "manual checked division",
                 None,
-                "consider using `checked_div` and handling the `Option` result",
+                "consider using `checked_div`",
             );
         }
     }
