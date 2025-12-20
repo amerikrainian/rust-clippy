@@ -1,7 +1,7 @@
 #![warn(clippy::manual_checked_div)]
 
 fn main() {
-    let a = 10u32;
+    let mut a = 10u32;
     let mut b = 5u32;
 
     // Should trigger lint
@@ -9,6 +9,12 @@ fn main() {
         //~^ manual_checked_div
         let _result = a / b;
         let _another = (a + 1) / b;
+    }
+
+    // Should trigger lint (compound assignment)
+    if b != 0 {
+        //~^ manual_checked_div
+        a /= b;
     }
 
     if b > 0 {

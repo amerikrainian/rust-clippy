@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::visitors::{Descend, for_each_expr_without_closures};
 use clippy_utils::{SpanlessEq, is_integer_literal};
-use rustc_hir::{BinOpKind, Block, Expr, ExprKind};
+use rustc_hir::{AssignOpKind, BinOpKind, Block, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
@@ -81,9 +81,22 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                     division_spans.push(e.span);
 
                     ControlFlow::<(), _>::Continue(Descend::No)
+                } else if let ExprKind::AssignOp(op, lhs, rhs) = e.kind
+                    && op.node == AssignOpKind::DivAssign
+                    && eq.eq_expr(rhs, divisor)
+                    && is_unsigned_integer(cx, lhs)
+                {
+                    match first_use {
+                        None => first_use = Some(UseKind::Division),
+                        Some(UseKind::Other) => return ControlFlow::Break(()),
+                        Some(UseKind::Division) => {},
+                    }
+
+                    division_spans.push(e.span);
+
+                    ControlFlow::<(), _>::Continue(Descend::No)
                 } else if eq.eq_expr(e, divisor) {
                     if first_use.is_none() {
-                        // If the divisor is used before the first division, avoid linting.
                         first_use = Some(UseKind::Other);
                         return ControlFlow::Break(());
                     }

@@ -14,7 +14,18 @@ LL |         let _another = (a + 1) / b;
    = help: to override `-D warnings` add `#[allow(clippy::manual_checked_div)]`
 
 error: manual checked division
-  --> tests/ui/manual_checked_div.rs:14:8
+  --> tests/ui/manual_checked_div.rs:15:8
+   |
+LL |     if b != 0 {
+   |        ^^^^^^ check performed here
+LL |
+LL |         a /= b;
+   |         ------ division performed here
+   |
+   = help: consider using `checked_div`
+
+error: manual checked division
+  --> tests/ui/manual_checked_div.rs:20:8
    |
 LL |     if b > 0 {
    |        ^^^^^ check performed here
@@ -25,7 +36,7 @@ LL |         let _result = a / b;
    = help: consider using `checked_div`
 
 error: manual checked division
-  --> tests/ui/manual_checked_div.rs:19:8
+  --> tests/ui/manual_checked_div.rs:25:8
    |
 LL |     if b == 0 {
    |        ^^^^^^ check performed here
@@ -35,5 +46,5 @@ LL |         let _result = a / b;
    |
    = help: consider using `checked_div`
 
-error: aborting due to 3 previous errors
+error: aborting due to 4 previous errors
 
