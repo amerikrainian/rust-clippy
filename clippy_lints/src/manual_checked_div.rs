@@ -48,16 +48,16 @@ impl LateLintPass<'_> for ManualCheckedDiv {
         if let ExprKind::If(cond, then, r#else) = expr.kind
             && !expr.span.from_expansion()
             && let Some((divisor, branch)) = divisor_from_condition(cond)
-            && is_unsigned_integer(cx, divisor)
-            && let Some(block) = branch_block(then, r#else, branch)
-        {
             // This lint is intended for unsigned integers only.
             //
             // For signed integers, the most direct refactor to `checked_div` is often not
             // semantically equivalent to the original guard. For example, `rhs > 0` deliberately
             // excludes negative divisors, while `checked_div` would return `Some` for `rhs = -2`.
-            // Also, `checked_div` can return `None` for `MIN / -1`, which requires additional handling beyond
-            // the zero check.
+            // Also, `checked_div` can return `None` for `MIN / -1`, which requires additional
+            // handling beyond the zero check.
+            && is_unsigned_integer(cx, divisor)
+            && let Some(block) = branch_block(then, r#else, branch)
+        {
             let mut eq = SpanlessEq::new(cx).deny_side_effects().paths_by_resolution();
             if !eq.eq_expr(divisor, divisor) {
                 return;
