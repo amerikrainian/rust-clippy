@@ -30,7 +30,7 @@ declare_clippy_lint! {
     ///     println!("{result}");
     /// }
     /// ```
-    #[clippy::version = "1.93.0"]
+    #[clippy::version = "1.94.0"]
     pub MANUAL_CHECKED_DIV,
     nursery,
     "manual zero checks before dividing integers"
