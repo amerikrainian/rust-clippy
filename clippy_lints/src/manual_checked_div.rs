@@ -114,8 +114,8 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                 diag.span_label(cond.span, "check performed here");
                 if let Some((first, rest)) = division_spans.split_first() {
                     diag.span_label(*first, "division performed here");
-                    for span in rest {
-                        diag.span_label(*span, "... and here");
+                    if !rest.is_empty() {
+                        diag.span_labels(rest.to_vec(), "... and here");
                     }
                 }
                 diag.help("consider using `checked_div`");
