@@ -2,12 +2,12 @@ error: manual checked division
   --> tests/ui/manual_checked_div.rs:8:8
    |
 LL |     if b != 0 {
-   |        ^^^^^^
+   |        ^^^^^^ check performed here
 LL |
 LL |         let _result = a / b;
-   |                       ^^^^^
+   |                       ----- division performed here
 LL |         let _another = (a + 1) / b;
-   |                        ^^^^^^^^^^^
+   |                        ----------- ... and here
    |
    = help: consider using `checked_div`
    = note: `-D clippy::manual-checked-div` implied by `-D warnings`
@@ -17,10 +17,10 @@ error: manual checked division
   --> tests/ui/manual_checked_div.rs:14:8
    |
 LL |     if b > 0 {
-   |        ^^^^^
+   |        ^^^^^ check performed here
 LL |
 LL |         let _result = a / b;
-   |                       ^^^^^
+   |                       ----- division performed here
    |
    = help: consider using `checked_div`
 
@@ -28,10 +28,10 @@ error: manual checked division
   --> tests/ui/manual_checked_div.rs:19:8
    |
 LL |     if b == 0 {
-   |        ^^^^^^
+   |        ^^^^^^ check performed here
 ...
 LL |         let _result = a / b;
-   |                       ^^^^^
+   |                       ----- division performed here
    |
    = help: consider using `checked_div`
 

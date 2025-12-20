@@ -1,7 +1,6 @@
-use clippy_utils::diagnostics::span_lint_and_help;
+use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::visitors::{Descend, for_each_expr_without_closures};
 use clippy_utils::{SpanlessEq, is_integer_literal};
-use rustc_errors::MultiSpan;
 use rustc_hir::{BinOpKind, Block, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
@@ -96,15 +95,16 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                 return;
             }
 
-            division_spans.push(cond.span);
-            span_lint_and_help(
-                cx,
-                MANUAL_CHECKED_DIV,
-                MultiSpan::from_spans(division_spans),
-                "manual checked division",
-                None,
-                "consider using `checked_div`",
-            );
+            span_lint_and_then(cx, MANUAL_CHECKED_DIV, cond.span, "manual checked division", |diag| {
+                diag.span_label(cond.span, "check performed here");
+                if let Some((first, rest)) = division_spans.split_first() {
+                    diag.span_label(*first, "division performed here");
+                    for span in rest {
+                        diag.span_label(*span, "... and here");
+                    }
+                }
+                diag.help("consider using `checked_div`");
+            });
         }
     }
 }
