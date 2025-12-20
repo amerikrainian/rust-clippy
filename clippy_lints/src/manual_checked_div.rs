@@ -83,7 +83,9 @@ impl LateLintPass<'_> for ManualCheckedDiv {
                     ControlFlow::<(), _>::Continue(Descend::No)
                 } else if eq.eq_expr(e, divisor) {
                     if first_use.is_none() {
+                        // If the divisor is used before the first division, avoid linting.
                         first_use = Some(UseKind::Other);
+                        return ControlFlow::Break(());
                     }
                     ControlFlow::<(), _>::Continue(Descend::Yes)
                 } else {
